@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"name": "FireBeetle",
+			"path": "FireBeetle"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"*.json": "json",
+			"*.tcc": "cpp",
+			"iosfwd": "cpp",
+			"istream": "cpp",
+			"limits": "cpp",
+			"streambuf": "cpp"
+		}
+	}
+}
