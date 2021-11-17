@@ -6,6 +6,7 @@
 #include "Forecast.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <PubSubClient.h>
 
 #define WEATHER_URL     "https://api.openweathermap.org/data/2.5/onecall?appid=5177e49f435a1cd5af7d5a96d50c7e53&exclude=current,minutely,daily,alerts&units=metric"
 
@@ -16,14 +17,17 @@ public:
     virtual bool onEvent(Event* pevent);
 
 private:
-    WiFiClientSecure wifiClient;
+    WiFiClientSecure wifiClientSecure;
+    WiFiClient wifiClientInsecure;
     HTTPClient httpClient;
     WiFiUDP ntpUDP;
+    PubSubClient mqtt;
 
     void syncTime();
     bool getForecast(Forecast*);
     bool getForecasts();
-    void connectWiFi();
+    bool connectWiFi();
+    void log(const char *ptopic, const char *pmessage);
 };
 
 extern classRefresh Refresh;

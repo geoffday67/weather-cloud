@@ -2,10 +2,11 @@
 
 #include <ArduinoStreamParser.h>
 #include <JsonStreamingParser2.h>
+#include <RTClib.h>
 
+#include "Forecast.h"
 #include "MainMenu.h"
 #include "Motor.h"
-#include "Forecast.h"
 #include "WeatherHandler.h"
 #include "main.h"
 
@@ -15,12 +16,27 @@ classRefresh Refresh;
 #define NTP_PORT 123
 #define NTP_OFFSET 2208988800UL
 
+#define MQTT_SERVER "192.168.1.5"
+#define MQTT_PORT 1883
+#define MQTT_CLIENT "weather-cloud"
+#define TIME_TOPIC "weather/time"
+
+void classRefresh::log(const char *ptopic, const char *pmessage) {
+    if (mqtt.connect(MQTT_CLIENT)) {
+        mqtt.publish(ptopic, pmessage, true);
+        mqtt.disconnect();
+    }
+    Serial.printf("Logged to MQTT\n");
+}
+
 void classRefresh::syncTime() {
     byte ntpBuffer[48];
     IPAddress address;
     uint32_t ntpTime;
     uint32_t unixTime;
     unsigned long start;
+    char s[64];
+    DateTime dt;
 
     ntpUDP.begin(NTP_PORT);
 
@@ -50,7 +66,10 @@ void classRefresh::syncTime() {
     ntpTime = (ntpBuffer[40] << 24) | (ntpBuffer[41] << 16) | (ntpBuffer[42] << 8) | ntpBuffer[43];
     unixTime = ntpTime - NTP_OFFSET;
 
-    Serial.printf("Unix time now %d\n", unixTime);
+    dt = DateTime(unixTime);
+    sprintf(s, "Time adjusted to %s UTC", dt.timestamp(DateTime::TIMESTAMP_FULL).c_str());
+    Serial.println(s);
+    log(TIME_TOPIC, s);
 
     struct timeval tv;
     tv.tv_sec = unixTime;
@@ -65,9 +84,16 @@ void classRefresh::activate() {
 
     WiFi.persistent(false);
     WiFi.mode(WIFI_STA);
-    connectWiFi();
+    if (!connectWiFi()) {
+        Serial.println("Error connecting WiFi");
+        goto exit;
+    }
+
+    mqtt.setClient(wifiClientInsecure);
+    mqtt.setServer(MQTT_SERVER, MQTT_PORT);
 
     syncTime();
+
     if (!getForecasts()) {
         goto exit;
     }
@@ -106,9 +132,9 @@ bool classRefresh::getForecast(Forecast *pforecast) {
     pparser->setHandler(phandler);
 
     // Get the weather data.
-    wifiClient.setInsecure();
+    wifiClientSecure.setInsecure();
     httpClient.setReuse(false);
-    httpClient.begin(wifiClient, purl);
+    httpClient.begin(wifiClientSecure, purl);
     int code = httpClient.GET();
     if (code != 200) {
         Serial.printf("ERROR Status code %d received\n", code);
@@ -119,7 +145,7 @@ bool classRefresh::getForecast(Forecast *pforecast) {
     pforecast->reset();
     int c;
     while (true) {
-        c = wifiClient.read();
+        c = wifiClientSecure.read();
         if (c == -1) {
             Serial.println("ERROR End of data reached");
             goto exit;
@@ -139,7 +165,7 @@ bool classRefresh::getForecast(Forecast *pforecast) {
 
 exit:
     httpClient.end();
-    wifiClient.stop();
+    wifiClientSecure.stop();
 
     delete pparser;
     delete phandler;
@@ -166,9 +192,12 @@ exit:
     return result;
 }
 
-void classRefresh::connectWiFi() {
+bool classRefresh::connectWiFi() {
+    bool result = false;
     int warioStrength = -999;
     int hobbyHouseStrength = -999;
+    unsigned long start;
+
     Serial.println("Scanning for networks");
     int n = WiFi.scanNetworks();
     for (int i = 0; i < n; i++) {
@@ -181,6 +210,11 @@ void classRefresh::connectWiFi() {
         }
     }
 
+    if (warioStrength == -999 && hobbyHouseStrength == -999) {
+        Serial.println("Known networks not found");
+        goto exit;
+    }
+
     if (warioStrength > hobbyHouseStrength) {
         WiFi.begin("Wario", "mansion1");
         Serial.print("Connecting to Wario ");
@@ -189,11 +223,22 @@ void classRefresh::connectWiFi() {
         Serial.print("Connecting to HobbyHouse ");
     }
 
+    start = millis();
     while (WiFi.status() != WL_CONNECTED) {
+        if (millis() - start > 20000) {
+            Serial.println();
+            Serial.println("Timed out connecting to access point");
+            goto exit;
+        }
         delay(100);
         Serial.print(".");
     }
     Serial.println();
     Serial.print("Connected, IP address: ");
     Serial.println(WiFi.localIP());
+
+    result = true;
+
+exit:
+    return result;
 }
