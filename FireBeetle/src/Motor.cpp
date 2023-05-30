@@ -3,6 +3,8 @@
 #include "Pins.h"
 #include "main.h"
 
+#define MOTOR_TOPIC  "weather/motor"
+
 classMotor Motor;
 
 void classMotor::begin(int steps_per_revolution, int in1, int in2, int in3, int in4) {
@@ -35,6 +37,8 @@ void classMotor::setZero() {
 }
 
 void classMotor::moveToIcon(int target) {
+  char s[128];
+
   if (target < 0 || target > 11) {
     return;
   }

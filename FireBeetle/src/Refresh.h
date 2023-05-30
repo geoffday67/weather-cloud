@@ -15,6 +15,7 @@ public:
     virtual void activate();
     virtual void deactivate();
     virtual bool onEvent(Event* pevent);
+    void log(const char *ptopic, const char *pmessage);
 
 private:
     WiFiClientSecure wifiClientSecure;

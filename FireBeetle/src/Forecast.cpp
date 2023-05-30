@@ -65,7 +65,7 @@ void Forecast::indicate(int targetHour) {
     }
 
     // Map icon name to position on dial.
-    Serial.printf("Indicating icon %s for timestamp %d\n", hours[hour].icon, hours[hour].timestamp);
+    Serial.printf("Indicating icon %s for timestamp %ld\n", hours[hour].icon, hours[hour].timestamp);
     Motor.moveToIcon(mapIcon(hours[hour].icon));
 }
 

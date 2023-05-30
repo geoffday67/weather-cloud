@@ -18,14 +18,20 @@ classRefresh Refresh;
 #define NTP_PORT 123
 #define NTP_OFFSET 2208988800UL
 
-#define MQTT_SERVER "192.168.68.106"
+#define MQTT_SERVER "Geoffs-Mac-Mini"
 #define MQTT_PORT 1883
 #define MQTT_CLIENT "weather-cloud"
 #define TIME_TOPIC "weather/time"
-#define REFRESH_TOPIC "weather/refresh"
+#define URL_TOPIC "weather/url"
+#define FORECAST_TOPIC "weather/forecast"
 
 void classRefresh::log(const char *ptopic, const char *pformat, ...) {
   char buffer[256];
+
+  if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi not connected, not logging");
+      return;
+  }
 
   va_list args;
   va_start (args, pformat);
@@ -77,9 +83,7 @@ void classRefresh::syncTime() {
     unixTime = ntpTime - NTP_OFFSET;
 
     dt = DateTime(unixTime);
-    sprintf(s, "Time adjusted to %s UTC", dt.timestamp(DateTime::TIMESTAMP_FULL).c_str());
-    Serial.println(s);
-    log(TIME_TOPIC, s);
+    log(TIME_TOPIC, "Time adjusted to %s UTC", dt.timestamp(DateTime::TIMESTAMP_FULL).c_str());
 
     struct timeval tv;
     tv.tv_sec = unixTime;
@@ -129,11 +133,12 @@ bool classRefresh::onEvent(Event *pevent) {
 
 bool classRefresh::getForecast(Forecast *pforecast) {
     bool result = false;
+    char s[256];
 
     // Form URL
     char *purl = new char[sizeof(WEATHER_URL) + 64];
     sprintf(purl, "%s&lat=%f&lon=%f", WEATHER_URL, pforecast->latitude, pforecast->longitude);
-    Serial.printf("Refreshing forecast from: %s\n", purl);
+    log(URL_TOPIC, "Refreshing forecast from: %s", purl);
 
     ArudinoStreamParser *pparser = new ArudinoStreamParser();
     WeatherHandler *phandler = new WeatherHandler();
@@ -185,6 +190,7 @@ exit:
 }
 
 bool classRefresh::getForecasts() {
+    char s[128];
     Forecast *pforecast;
     bool result = false;
 
@@ -193,7 +199,7 @@ bool classRefresh::getForecasts() {
         if (!getForecast(pforecast)) {
             goto exit;
         }
-        log(REFRESH_TOPIC, "Fetched %d hours forecast for %s\n", pforecast->hourCount, pforecast->location);
+        log(FORECAST_TOPIC, "Fetched %d hours forecast for %s\n", pforecast->hourCount, pforecast->location);
     }
 
     result = true;
