@@ -27,7 +27,7 @@ private:
     bool getForecast(Forecast*);
     bool getForecasts();
     bool connectWiFi();
-    void log(const char *ptopic, const char *pmessage);
+    void log(const char *ptopic, const char *pformat, ...);
 };
 
 extern classRefresh Refresh;

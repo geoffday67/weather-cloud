@@ -1,5 +1,7 @@
 #include "Refresh.h"
 
+#include <stdarg.h>
+
 #include <ArduinoStreamParser.h>
 #include <JsonStreamingParser2.h>
 #include <RTClib.h>
@@ -16,17 +18,25 @@ classRefresh Refresh;
 #define NTP_PORT 123
 #define NTP_OFFSET 2208988800UL
 
-#define MQTT_SERVER "192.168.1.5"
+#define MQTT_SERVER "192.168.68.106"
 #define MQTT_PORT 1883
 #define MQTT_CLIENT "weather-cloud"
 #define TIME_TOPIC "weather/time"
+#define REFRESH_TOPIC "weather/refresh"
 
-void classRefresh::log(const char *ptopic, const char *pmessage) {
-    if (mqtt.connect(MQTT_CLIENT)) {
-        mqtt.publish(ptopic, pmessage, true);
-        mqtt.disconnect();
-    }
-    Serial.printf("Logged to MQTT\n");
+void classRefresh::log(const char *ptopic, const char *pformat, ...) {
+  char buffer[256];
+
+  va_list args;
+  va_start (args, pformat);
+
+  vsnprintf (buffer, 255, pformat, args);
+  if (mqtt.connect(MQTT_CLIENT)) {
+      mqtt.publish(ptopic, buffer, true);
+      mqtt.disconnect();
+  }
+  
+  va_end (args);
 }
 
 void classRefresh::syncTime() {
@@ -183,7 +193,7 @@ bool classRefresh::getForecasts() {
         if (!getForecast(pforecast)) {
             goto exit;
         }
-        Serial.printf("Fetched %d hours forecast for %s\n", pforecast->hourCount, pforecast->location);
+        log(REFRESH_TOPIC, "Fetched %d hours forecast for %s\n", pforecast->hourCount, pforecast->location);
     }
 
     result = true;
@@ -193,52 +203,29 @@ exit:
 }
 
 bool classRefresh::connectWiFi() {
-    bool result = false;
-    int warioStrength = -999;
-    int hobbyHouseStrength = -999;
-    unsigned long start;
+  bool result = false;
+  unsigned long start;
 
-    Serial.println("Scanning for networks");
-    int n = WiFi.scanNetworks();
-    for (int i = 0; i < n; i++) {
-        if (WiFi.SSID(i) == "Wario") {
-            warioStrength = WiFi.RSSI(i);
-        }
+  WiFi.begin("Wario", "mansion1");
+  Serial.print("Connecting ");
 
-        if (WiFi.SSID(i) == "HobbyHouse") {
-            hobbyHouseStrength = WiFi.RSSI(i);
-        }
+  start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    if (millis() - start > 5000) {
+      Serial.println();
+      Serial.println("Timed out connecting to access point");
+      goto exit;
     }
+    delay(100);
+    Serial.print(".");
+  }
 
-    if (warioStrength == -999 && hobbyHouseStrength == -999) {
-        Serial.println("Known networks not found");
-        goto exit;
-    }
+  Serial.println();
+  Serial.print("Connected, IP address: ");
+  Serial.println(WiFi.localIP());
 
-    if (warioStrength > hobbyHouseStrength) {
-        WiFi.begin("Wario", "mansion1");
-        Serial.print("Connecting to Wario ");
-    } else {
-        WiFi.begin("HobbyHouse", "mansion1");
-        Serial.print("Connecting to HobbyHouse ");
-    }
-
-    start = millis();
-    while (WiFi.status() != WL_CONNECTED) {
-        if (millis() - start > 20000) {
-            Serial.println();
-            Serial.println("Timed out connecting to access point");
-            goto exit;
-        }
-        delay(100);
-        Serial.print(".");
-    }
-    Serial.println();
-    Serial.print("Connected, IP address: ");
-    Serial.println(WiFi.localIP());
-
-    result = true;
+  result = true;
 
 exit:
-    return result;
+  return result;
 }
