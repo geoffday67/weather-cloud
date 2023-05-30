@@ -15,6 +15,7 @@ public:
     virtual void activate();
     virtual void deactivate();
     virtual bool onEvent(Event* pevent);
+    void log(const char *ptopic, const char *pmessage);
 
 private:
     WiFiClientSecure wifiClientSecure;
@@ -27,7 +28,6 @@ private:
     bool getForecast(Forecast*);
     bool getForecasts();
     bool connectWiFi();
-    void log(const char *ptopic, const char *pmessage);
 };
 
 extern classRefresh Refresh;

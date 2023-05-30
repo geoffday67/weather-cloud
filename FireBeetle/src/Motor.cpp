@@ -2,6 +2,9 @@
 #include "Motor.h"
 #include "Pins.h"
 #include "main.h"
+#include "Refresh.h">
+
+#define MOTOR_TOPIC  "weather/motor"
 
 classMotor Motor;
 
@@ -35,6 +38,8 @@ void classMotor::setZero() {
 }
 
 void classMotor::moveToIcon(int target) {
+  char s[128];
+
   if (target < 0 || target > 11) {
     return;
   }
@@ -51,6 +56,10 @@ void classMotor::moveToIcon(int target) {
   pstepper->runToPosition();
 
   storePosition(target);
+
+  sprintf (s, "Moving by %d steps to target %d", delta, target);
+  Refresh.log(MOTOR_TOPIC, s);
+  Serial.println(s);
 }
 
 int classMotor::positionToSteps(int position) {

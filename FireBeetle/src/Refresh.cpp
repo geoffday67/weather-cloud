@@ -16,17 +16,26 @@ classRefresh Refresh;
 #define NTP_PORT 123
 #define NTP_OFFSET 2208988800UL
 
-#define MQTT_SERVER "192.168.1.5"
+#define MQTT_SERVER "Geoffs-Mac-Mini"
 #define MQTT_PORT 1883
 #define MQTT_CLIENT "weather-cloud"
 #define TIME_TOPIC "weather/time"
+#define URL_TOPIC "weather/url"
+#define FORECAST_TOPIC "weather/forecast"
 
 void classRefresh::log(const char *ptopic, const char *pmessage) {
+    return;
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("WiFi not connected, not logging");
+        return;
+    }
+
     if (mqtt.connect(MQTT_CLIENT)) {
         mqtt.publish(ptopic, pmessage, true);
         mqtt.disconnect();
+        Serial.printf("Logged topic %s\n", ptopic);
     }
-    Serial.printf("Logged to MQTT\n");
 }
 
 void classRefresh::syncTime() {
@@ -119,11 +128,14 @@ bool classRefresh::onEvent(Event *pevent) {
 
 bool classRefresh::getForecast(Forecast *pforecast) {
     bool result = false;
+    char s[256];
 
     // Form URL
     char *purl = new char[sizeof(WEATHER_URL) + 64];
     sprintf(purl, "%s&lat=%f&lon=%f", WEATHER_URL, pforecast->latitude, pforecast->longitude);
-    Serial.printf("Refreshing forecast from: %s\n", purl);
+    sprintf(s, "Refreshing forecast from: %s", purl);
+    log(URL_TOPIC, s);
+    Serial.println(s);
 
     ArudinoStreamParser *pparser = new ArudinoStreamParser();
     WeatherHandler *phandler = new WeatherHandler();
@@ -175,6 +187,7 @@ exit:
 }
 
 bool classRefresh::getForecasts() {
+    char s[128];
     Forecast *pforecast;
     bool result = false;
 
@@ -183,7 +196,9 @@ bool classRefresh::getForecasts() {
         if (!getForecast(pforecast)) {
             goto exit;
         }
-        Serial.printf("Fetched %d hours forecast for %s\n", pforecast->hourCount, pforecast->location);
+        sprintf(s, "Fetched %d hours forecast for %s", pforecast->hourCount, pforecast->location);
+        log(FORECAST_TOPIC, s);
+        Serial.println(s);
     }
 
     result = true;
@@ -194,34 +209,11 @@ exit:
 
 bool classRefresh::connectWiFi() {
     bool result = false;
-    int warioStrength = -999;
-    int hobbyHouseStrength = -999;
     unsigned long start;
 
-    Serial.println("Scanning for networks");
-    int n = WiFi.scanNetworks();
-    for (int i = 0; i < n; i++) {
-        if (WiFi.SSID(i) == "Wario") {
-            warioStrength = WiFi.RSSI(i);
-        }
-
-        if (WiFi.SSID(i) == "HobbyHouse") {
-            hobbyHouseStrength = WiFi.RSSI(i);
-        }
-    }
-
-    if (warioStrength == -999 && hobbyHouseStrength == -999) {
-        Serial.println("Known networks not found");
-        goto exit;
-    }
-
-    if (warioStrength > hobbyHouseStrength) {
-        WiFi.begin("Wario", "mansion1");
-        Serial.print("Connecting to Wario ");
-    } else {
-        WiFi.begin("HobbyHouse", "mansion1");
-        Serial.print("Connecting to HobbyHouse ");
-    }
+    WiFi.hostname("Weather cloud");
+    WiFi.begin("Wario", "mansion1");
+    Serial.print("Connecting to Wario ");
 
     start = millis();
     while (WiFi.status() != WL_CONNECTED) {

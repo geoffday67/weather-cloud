@@ -14,7 +14,7 @@
 #include "Refresh.h"
 #include "main.h"
 
-#define REFRESH_DELAY (10 * 60 * 1000)
+#define REFRESH_DELAY (30 * 60 * 1000)
 #define IDLE_TIMEOUT 10000
 
 Preferences preferences;
