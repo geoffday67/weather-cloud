@@ -18,7 +18,7 @@ classRefresh Refresh;
 #define NTP_PORT 123
 #define NTP_OFFSET 2208988800UL
 
-#define MQTT_SERVER "Geoffs-Mac-Mini"
+#define MQTT_SERVER "192.168.68.106"
 #define MQTT_PORT 1883
 #define MQTT_CLIENT "weather-cloud"
 #define TIME_TOPIC "weather/time"
@@ -138,7 +138,7 @@ bool classRefresh::getForecast(Forecast *pforecast) {
     // Form URL
     char *purl = new char[sizeof(WEATHER_URL) + 64];
     sprintf(purl, "%s&lat=%f&lon=%f", WEATHER_URL, pforecast->latitude, pforecast->longitude);
-    log(URL_TOPIC, "Refreshing forecast from: %s", purl);
+    log(URL_TOPIC, purl);
 
     ArudinoStreamParser *pparser = new ArudinoStreamParser();
     WeatherHandler *phandler = new WeatherHandler();
