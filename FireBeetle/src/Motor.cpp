@@ -21,6 +21,7 @@ void classMotor::moveBy(int delta) {
   }
   pstepper->move(delta * 10);
   pstepper->runToPosition();
+  pstepper->disableOutputs();
 }
 
 void classMotor::storePosition(int position) {
@@ -53,6 +54,7 @@ void classMotor::moveToIcon(int target) {
   }
   pstepper->move(delta);
   pstepper->runToPosition();
+  pstepper->disableOutputs();
 
   storePosition(target);
 }
